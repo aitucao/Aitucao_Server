@@ -18,7 +18,9 @@
   },
   "homepage": "https://github.com/aitucao/Aitucao_Server#readme",
   "dependencies": {
+    "chalk": "^1.1.3",
     "express": "^4.13.4",
-    "socket.io": "^1.4.6"
+    "socket.io": "^1.4.6",
+    "websocket.io": "^0.2.1"
   }
 }
