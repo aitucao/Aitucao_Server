@@ -15,22 +15,17 @@ webServer.get('/msg/:room/:msg', function (req, res) {
     console.log(chalk.magenta("msg: "+req.params.msg));
     
     if(rooms[req.params.room]) {
-        let ret = {
+        var ret = {
             type: "SEND_MESSAGE",
             msg: req.params.msg
         }
         //发送数据
         rooms[req.params.room].socket.send(JSON.stringify(ret));
-        var resData = {
-            code: 0,
-            data: {
-                room: req.params.room,
-                msg: req.params.msg
-            }
-        };
-        res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify(resData));
-    } 
+        
+        res.send('0');
+    } else {
+        res.send('-1');
+    }
     
 });
 
@@ -59,6 +54,8 @@ wsServer.on('connection', function (socket) {
     console.log(socket.socket.address());
     
     socket.on('message', function (data) { 
+        console.log(data);
+
         var message;
         try {
             message = JSON.parse(data);
@@ -66,28 +63,42 @@ wsServer.on('connection', function (socket) {
             console.log(chalk.red(error));
             return;
         }
+
+        console.log(chalk.blue(message.type));
         
         switch(message.type) {
             //创建房间
-            case "CREAT_ROOM":
-                let room = Math.floor(Math.random()*90000) + 10000;
+            case "CREATE_ROOM":
+                var room = Math.floor(Math.random()*90000) + 10000;
                 rooms[room] = {
                     room: room,
                     socket: socket
                 }
-                let ret = {
-                    type: "CREAT_ROOM",
-                    room: room,
+                var ret = {
+                    type: "CREATE_ROOM",
+                    data: room,
                 }
-                socket.send(JSON.stringify(ret));
+                try {
+                    socket.send(JSON.stringify(ret));
+                } catch (error) {
+                    console.log(chalk.blue(error));
+                }
                 break;
             default:
                 console.log(chalk.blue("unknown connection"));
+                socket.send("unknown");
                 break;
         }
         
     });
     socket.on('close', function () {
         console.log(chalk.blue("a user disconnected"));
+        // rooms.forEach(function (ele) {
+            // console.log(ele.socket == socket);
+        // });
+    });
+    socket.on('error', function (data) {
+        console.log(chalk.blue("error ocurred"));
+        
     });
 });
