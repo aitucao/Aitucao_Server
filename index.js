@@ -4,7 +4,7 @@ var ws = require('websocket.io'),
     chalk = require('chalk');
     
 //维护所有房间
-var rooms = {};
+global.rooms = {};
 
 //webserver处理和手机端的通信
 
@@ -16,8 +16,8 @@ webServer.get('/msg/:room/:msg', function (req, res) {
     
     if(rooms[req.params.room]) {
         var ret = {
-            type: "SEND_MESSAGE",
-            msg: req.params.msg
+            type: "TEXT",
+            data: req.params.msg
         }
         //发送数据
         rooms[req.params.room].socket.send(JSON.stringify(ret));
@@ -27,6 +27,24 @@ webServer.get('/msg/:room/:msg', function (req, res) {
         res.send('-1');
     }
     
+});
+
+//撤回的接口
+webServer.get('/back/:room/:messageid', function (req, res) {
+    console.log(chalk.magenta("GET: reach web server /back/"+req.params.room+"/"+req.params.messageid));
+    
+    if(rooms[req.params.room]) {
+        var ret = {
+            type: "BACK",
+            data: req.params.messageid
+        }
+        //发送数据
+        rooms[req.params.room].socket.send(JSON.stringify(ret));
+        
+        res.send('0');
+    } else {
+        res.send('-1');
+    }
 });
 
 //获取房间名称的接口
@@ -50,8 +68,7 @@ webServer.listen(3000, function () {
 
 //websocket服务处理和pc的通信
 wsServer.on('connection', function (socket) {
-    console.log(chalk.blue("a user connected"));
-    console.log(socket.socket.address());
+    console.log(chalk.blue("a user connected:"+socket.socket.address()));
     
     socket.on('message', function (data) { 
         console.log(data);
@@ -84,6 +101,30 @@ wsServer.on('connection', function (socket) {
                     console.log(chalk.blue(error));
                 }
                 break;
+            //恢复房间
+            case "RECONNECT_ROOM":
+                //如果需要重连房间，则替换当前房间列表中的映射
+                if(typeof message.data == 'Number' ){
+                    rooms[message.data] = {
+                        room: message.data,
+                        socket: socket
+                    }
+                    var ret = {
+                        type: "RECONNECT_ROOM",
+                        data: 'success',
+                    }
+                    try {
+                        socket.send(JSON.stringify(ret));
+                    } catch (error) {
+                        console.log(chalk.blue(error));
+                    }
+                }
+                break;
+            case "LEAVE_ROOM":
+                // if(rooms[message.data]){
+                //     delete rooms[message.data];
+                // }
+                break;
             default:
                 console.log(chalk.blue("unknown connection"));
                 socket.send("unknown");
@@ -93,12 +134,20 @@ wsServer.on('connection', function (socket) {
     });
     socket.on('close', function () {
         console.log(chalk.blue("a user disconnected"));
-        // rooms.forEach(function (ele) {
-            // console.log(ele.socket == socket);
-        // });
+        console.log(Object.keys(rooms));
+        for(key in rooms) {
+            if(rooms[key].socket == socket){
+                delete rooms[key];
+            }
+        }
+        console.log(Object.keys(rooms));
+        
     });
     socket.on('error', function (data) {
         console.log(chalk.blue("error ocurred"));
-        
+        console.log(Object.keys(rooms));
+        // rooms.forEach(function (ele) {
+        //     console.log(ele);
+        // });
     });
 });
